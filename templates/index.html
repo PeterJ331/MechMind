@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>MechMind</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .nav-link { cursor: pointer; }
+        .content-section { display: none; }
+        .content-section.active { display: block; }
+        .sidebar { min-height: 100vh; }
+    </style>
+</head>
+<body class="bg-light">
+
+<div class="container-fluid">
+  <div class="row">
+    <!-- 左侧导航 -->
+    <nav class="col-md-2 bg-white border-end sidebar p-3">
+      <div class="text-start mb-4">
+        <img src="{{ url_for('static', filename='logo-1.png') }}" alt="MechMind Logo" style="height: 120px;">
+      </div>
+      <ul class="nav nav-pills flex-column">
+        <li class="nav-item mb-2"><a class="nav-link active" onclick="showSection('chat-section')">💬 聊天</a></li>
+        <li class="nav-item mb-2"><a class="nav-link" onclick="showSection('file-section')">📁 仓库</a></li>
+        <li class="nav-item mb-2"><a class="nav-link" onclick="showSection('voice-section')">🎙️ 语音</a></li>
+        <li class="nav-item mb-2"><a class="nav-link" onclick="showSection('excel-section')">📊 Excel</a></li>
+        <li class="nav-item mb-2"><a class="nav-link" onclick="showSection('model-config-section')">⚙️ 模型选择</a></li>
+      </ul>
+    </nav>
+
+    <!-- 右侧内容 -->
+    <main class="col-md-10 p-4">
+      <!-- 聊天模块 -->
+      <div id="chat-section"
+           class="content-section active flex-column {% if not answer %}d-flex align-items-center justify-content-center{% endif %}"
+           style="min-height: 80vh;">
+
+        {% if not answer %}
+          <!-- Logo 居中显示 -->
+          <div class="text-center my-4">
+            <img src="{{ url_for('static', filename='logo-1.png') }}" alt="Logo" style="height: 400px;">
+          </div>
+
+          <!-- 推荐提问气泡框 -->
+          <div class="d-flex flex-wrap justify-content-center gap-2 mb-4">
+            <button class="btn btn-outline-secondary rounded-pill" onclick="presetQuestion('机械装备说明书一般包含哪几部分？')">机械装备说明书一般包含哪几部分？</button>
+            <button class="btn btn-outline-secondary rounded-pill" onclick="presetQuestion('什么是LLM？')">什么是LLM？</button>
+            <button class="btn btn-outline-secondary rounded-pill" onclick="presetQuestion('介绍下非标设计的特点')">介绍下非标设计的特点</button>
+            <button class="btn btn-outline-secondary rounded-pill" onclick="presetQuestion('帮我写设备操作说明书')">帮我写设备操作说明书</button>
+          </div>
+        {% endif %}
+
+        <!-- 中央提问输入框（始终显示） -->
+        <form action="/ask" method="post" class="w-75 mb-3">
+          <div class="input-group input-group-lg shadow-sm">
+            <input type="text" name="question" class="form-control rounded-start-pill border-end-0" placeholder="你想知道什么？" required>
+            <button class="btn btn-success rounded-end-pill px-4">提问</button>
+          </div>
+        </form>
+
+        <!-- 模型回答展示 -->
+        {% if answer %}
+        <div class="alert alert-info w-75"><strong>🤖 模型回答：</strong><br>{{ answer }}</div>
+        {% endif %}
+
+<!--        &lt;!&ndash; 下载 Markdown &ndash;&gt;-->
+<!--        {% if markdown_file %}-->
+<!--        <div class="mt-3">-->
+<!--          <a href="{{ url_for('download_markdown', filename=markdown_file) }}" class="btn btn-outline-success">📥 下载 Markdown</a>-->
+<!--        </div>-->
+<!--        {% endif %}-->
+        <!-- 下载 Markdown -->
+        {% if answer %}
+        <div class="mt-3">
+          <a href="{{ url_for('download_markdown_live') }}" class="btn btn-outline-success">📥 下载 Markdown</a>
+        </div>
+        {% endif %}
+
+
+        <!-- 引用资料 -->
+        {% if source_chunks %}
+        <div class="card border-info mt-4 w-75">
+          <div class="card-header bg-info text-white">📄 引用资料片段（Top {{ source_chunks|length }}）</div>
+          <div class="card-body">
+            <div class="accordion" id="ragAccordion">
+              {% for chunk in source_chunks %}
+              <div class="accordion-item">
+                <h2 class="accordion-header" id="heading{{ loop.index }}">
+                  <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ loop.index }}">
+                    📎 片段 {{ loop.index }}
+                  </button>
+                </h2>
+                <div id="collapse{{ loop.index }}" class="accordion-collapse collapse" data-bs-parent="#ragAccordion">
+                  <div class="accordion-body bg-light">
+                    <pre style="white-space: pre-wrap; font-size: 14px;">{{ chunk }}</pre>
+                    <button class="btn btn-sm btn-outline-secondary mt-2" onclick="copyToClipboard('chunkTxt{{ loop.index }}')">📋 复制</button>
+                    <textarea id="chunkTxt{{ loop.index }}" class="d-none">{{ chunk }}</textarea>
+                  </div>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+
+<!--      <div id="chat-section" class="content-section active">-->
+<!--        <div class="card mb-4">-->
+<!--          <div class="card-header">💬 聊天问答（支持本地 / 云端模型）</div>-->
+<!--          <div class="card-body">-->
+<!--            <form action="/ask" method="post" class="row g-3">-->
+<!--              <div class="col-md-10">-->
+<!--                <input type="text" name="question" class="form-control" placeholder="请输入问题..." required>-->
+<!--              </div>-->
+<!--              <div class="col-md-2">-->
+<!--                <button class="btn btn-success w-100">提问</button>-->
+<!--              </div>-->
+<!--            </form>-->
+
+
+
+<!--            {% if voice_text %}-->
+<!--            <div class="alert alert-warning mt-3">-->
+<!--              <strong>📝 语音识别内容：</strong> {{ voice_text }}-->
+<!--              <button class="btn btn-sm btn-outline-dark ms-2" onclick="copyText()">复制</button>-->
+<!--            </div>-->
+<!--            {% endif %}-->
+
+<!--            {% if answer %}-->
+<!--            <div class="alert alert-info mt-3"><strong>🤖 模型回答： </strong>{{ answer }}</div>-->
+<!--            {% endif %}-->
+
+<!--            {% if markdown_file %}-->
+<!--            <div class="mt-3">-->
+<!--              <a href="{{ url_for('download_markdown', filename=markdown_file) }}" class="btn btn-outline-success">-->
+<!--                📥 下载问答 Markdown-->
+<!--              </a>-->
+<!--            </div>-->
+<!--            {% endif %}-->
+
+<!--            {% if source_chunks %}-->
+<!--            <div class="card border-info mt-4">-->
+<!--              <div class="card-header bg-info text-white">📄 引用资料片段（Top {{ source_chunks|length }}）</div>-->
+<!--              <div class="card-body">-->
+<!--                <div class="accordion" id="ragAccordion">-->
+<!--                  {% for chunk in source_chunks %}-->
+<!--                  <div class="accordion-item">-->
+<!--                    <h2 class="accordion-header" id="heading{{ loop.index }}">-->
+<!--                      <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ loop.index }}" aria-expanded="false">-->
+<!--                        📎 片段 {{ loop.index }}-->
+<!--                      </button>-->
+<!--                    </h2>-->
+<!--                    <div id="collapse{{ loop.index }}" class="accordion-collapse collapse" data-bs-parent="#ragAccordion">-->
+<!--                      <div class="accordion-body bg-light">-->
+<!--                        <pre style="white-space: pre-wrap; font-size: 14px;">{{ chunk }}</pre>-->
+<!--                        <button class="btn btn-sm btn-outline-secondary mt-2" onclick="copyToClipboard('chunkTxt{{ loop.index }}')">📋 复制</button>-->
+<!--                        <textarea id="chunkTxt{{ loop.index }}" class="d-none">{{ chunk }}</textarea>-->
+<!--                      </div>-->
+<!--                    </div>-->
+<!--                  </div>-->
+<!--                  {% endfor %}-->
+<!--                </div>-->
+<!--              </div>-->
+<!--            </div>-->
+<!--            {% endif %}-->
+<!--          </div>-->
+<!--        </div>-->
+<!--      </div>-->
+      <!-- 模型选择模块 -->
+      <div id="model-config-section" class="content-section">
+        <div class="card mb-4">
+          <div class="card-header">⚙️ 模型选择与 API 配置</div>
+          <div class="card-body">
+            <form action="/set_model" method="POST" class="row g-3">
+              <div class="col-md-6">
+                <label for="global_model" class="form-label">选择使用的模型</label>
+                <select name="global_model" class="form-select">
+                  <option value="local" {% if selected_model == 'local' %}selected{% endif %}>本地部署 DeepSeek</option>
+                  <option value="openai" {% if selected_model == 'openai' %}selected{% endif %}>OpenRouter 云端（DeepSeek R1 免费版）</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label for="api_key" class="form-label">API Key（仅云端需要）</label>
+                <input type="text" name="api_key" class="form-control" placeholder="输入 OpenRouter API Key" value="{{ api_key or '' }}">
+              </div>
+              <div class="col-12">
+                <button class="btn btn-primary">✅ 应用设置</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+      <!-- 文件模块 -->
+      <div id="file-section" class="content-section">
+        <div class="card mb-4">
+          <div class="card-header">📁 新建文件夹</div>
+          <div class="card-body">
+            <form action="/create_folder" method="post" class="row g-3">
+              <div class="col-md-10"><input type="text" name="folder_name" class="form-control" placeholder="输入文件夹名称" required></div>
+              <div class="col-md-2"><button class="btn btn-secondary w-100">创建</button></div>
+            </form>
+          </div>
+        </div>
+
+        <div class="card mb-4">
+          <div class="card-header">上传文件（PDF / DOCX / TXT）</div>
+          <div class="card-body">
+            <form action="/upload" method="post" enctype="multipart/form-data" class="row g-3">
+              <div class="col-md-4"><input type="file" name="file" class="form-control" required></div>
+              <div class="col-md-4">
+                <select name="folder" class="form-select" required>
+                  {% for folder in folders %}<option>{{ folder }}</option>{% endfor %}
+                </select>
+              </div>
+              <div class="col-md-4"><button class="btn btn-primary w-100">上传</button></div>
+            </form>
+          </div>
+        </div>
+        {% for folder, files in folder_files.items() %}
+        <div class="card mb-3">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <span>📂 {{ folder }}</span>
+            <form action="{{ url_for('delete_folder', folder_name=folder) }}" method="post" onsubmit="return confirm('确定要删除整个文件夹 {{ folder }} 吗？此操作不可恢复！')">
+              <button type="submit" class="btn btn-sm btn-outline-danger">🗑 删除文件夹</button>
+            </form>
+          </div>
+          <div class="card-body">
+            {% if files %}
+            <ul class="list-group">
+              {% for file in files %}
+              <li class="list-group-item d-flex justify-content-between">
+                {{ file }}
+                <span>
+                  <a href="{{ url_for('view_file', folder=folder, filename=file) }}" target="_blank" class="btn btn-sm btn-outline-secondary">查看</a>
+                  <a href="{{ url_for('download_file', folder=folder, filename=file) }}" class="btn btn-sm btn-outline-primary">下载</a>
+                  <a href="{{ url_for('delete_file', folder=folder, filename=file) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('确认删除 {{ file }} 吗？')">删除</a>
+                </span>
+              </li>
+              {% endfor %}
+            </ul>
+            {% else %}
+            <p class="text-muted">（该文件夹暂无文件）</p>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+
+<!--        {% for folder, files in folder_files.items() %}-->
+<!--        <div class="card mb-3">-->
+<!--          <div class="card-header">📂 {{ folder }}</div>-->
+<!--          <div class="card-body">-->
+<!--            {% if files %}-->
+<!--            <ul class="list-group">-->
+<!--              {% for file in files %}-->
+<!--              <li class="list-group-item d-flex justify-content-between">-->
+<!--                {{ file }}-->
+<!--                <span>-->
+<!--                  <a href="{{ url_for('view_file', folder=folder, filename=file) }}" target="_blank" class="btn btn-sm btn-outline-secondary">查看</a>-->
+<!--                  <a href="{{ url_for('download_file', folder=folder, filename=file) }}" class="btn btn-sm btn-outline-primary">下载</a>-->
+<!--                  <a href="{{ url_for('delete_file', folder=folder, filename=file) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('确认删除 {{ file }} 吗？')">删除</a>-->
+<!--                </span>-->
+<!--              </li>-->
+<!--              {% endfor %}-->
+<!--            </ul>-->
+<!--            {% else %}-->
+<!--            <p class="text-muted">（该文件夹暂无文件）</p>-->
+<!--            {% endif %}-->
+<!--          </div>-->
+<!--        </div>-->
+<!--        {% endfor %}-->
+      </div>
+
+      <!-- 语音模块 -->
+      <div id="voice-section" class="content-section">
+        <div class="card mb-4">
+          <div class="card-header">🎙️ 浏览器录音识别提问</div>
+          <div class="card-body">
+            <button onclick="startRecording()" class="btn btn-warning">开始录音</button>
+            <button onclick="stopRecording()" class="btn btn-secondary">停止录音</button>
+            <form id="voice-form" action="/ask_from_voice" method="post" class="mt-3">
+              <input type="hidden" name="audio_blob" id="audio_blob_input">
+              <button class="btn btn-success">提交提问</button>
+            </form>
+            <p id="voice-status" class="mt-2 text-muted"></p>
+          </div>
+        </div>
+
+        <div class="card mb-4">
+          <div class="card-header">📁 上传音频文件提问</div>
+          <div class="card-body">
+            <form action="/ask_from_audio" method="post" enctype="multipart/form-data">
+              <input type="file" name="audio_file" class="form-control" accept="audio/*" required>
+              <button class="btn btn-primary mt-2">提交提问</button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Excel 模块 -->
+      <div id="excel-section" class="content-section">
+        <div class="card mb-4">
+          <div class="card-header">📊 上传 Excel 表格提问</div>
+          <div class="card-body">
+            <form action="/ask_from_excel" method="post" enctype="multipart/form-data">
+              <input type="file" name="excel_file" class="form-control" accept=".xlsx,.xls" required>
+              <textarea name="excel_question" class="form-control mt-2" rows="3" placeholder="请输入对 Excel 的问题..." required></textarea>
+              <button class="btn btn-success mt-2">提交提问</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='recorder.js') }}"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+function showSection(id) {
+  document.querySelectorAll('.content-section').forEach(e => e.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('.nav-link').forEach(e => e.classList.remove('active'));
+  event.target.classList.add('active');
+}
+
+function copyText() {
+  navigator.clipboard.writeText(document.getElementById("recognized-text")?.innerText || "")
+    .then(() => alert("✅ 已复制"))
+    .catch(err => alert("❌ 复制失败：" + err));
+}
+
+function copyToClipboard(id) {
+  navigator.clipboard.writeText(document.getElementById(id).value)
+    .then(() => alert("✅ 片段已复制"))
+    .catch(err => alert("❌ 复制失败：" + err));
+}
+</script>
+<script>
+  function presetQuestion(text) {
+    const input = document.querySelector('input[name="question"]');
+    input.value = text;
+    input.focus();
+  }
+</script>
+
+</body>
+</html>
